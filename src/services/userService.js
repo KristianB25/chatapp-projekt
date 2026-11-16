@@ -1,33 +1,65 @@
-import fs from 'fs/promises';
 import User from '../models/userModel.js';
+import {collection,doc,setDoc,getDocs,getDoc,query,where} from 'firebase/firestore';
+import { dbRef } from '../config/config.js';
 
-const usersFilePath = './database/users.json'
 
+const usersCollection = collection(dbRef, 'users');
+
+// Opret bruger
 async function insertUser(user) {
-    try {
-        const users = await getUsers();
-        users.push(user);
-        await fs.writeFile(usersFilePath, JSON.stringify(users));
-    } catch (err) {
-        console.log(err);
-    }
+    const userRef = doc(dbRef, 'users', user.userid);
+
+    await setDoc(userRef, {
+        userid: user.userid,
+        username: user.username,
+        password: user.password,
+        creationDate: user.creationDate,
+        level: user.level
+    });
 }
 
+// Hent alle brugere
 async function getUsers() {
-    const userJSON = await fs.readFile(usersFilePath);
-    const usersData = JSON.parse(userJSON);
-    const users = usersData.map((u) => {
-        return new User(u.userid, u.username, u.password, u.creationData, u.level)
-    })
+    const snapshot = await getDocs(usersCollection);
+
+    const users = snapshot.docs.map(doc => {
+        const u = doc.data();
+
+        return new User(
+            u.userid,
+            u.username,
+            u.password,
+            u.creationDate,
+            u.level
+        );
+    });
 
     return users;
 }
 
+// Hent bruger via username
 async function getUserByUsername(username) {
-    const users = await getUsers();
-    const user = users.find(user => user.username == username);
+    const q = query(
+        usersCollection,
+        where('username', '==', username)
+    );
 
-    return user;
+    const snapshot = await getDocs(q);
+
+    if (snapshot.empty) {
+        return null;
+    }
+
+    const doc = snapshot.docs[0];
+    const u = doc.data();
+
+    return new User(
+        u.userid,
+        u.username,
+        u.password,
+        u.creationDate,
+        u.level
+    );
 }
 
-export { insertUser, getUsers, getUserByUsername }
+export { insertUser, getUsers, getUserByUsername };

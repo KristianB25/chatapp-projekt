@@ -1,9 +1,10 @@
 import express from 'express';
 import { isAuthorized } from '../middleware/authMiddleware.js';
-import {collection,query,where,getDocs,doc, getDoc} from 'firebase/firestore';
+import {collection,query,where,getDocs,doc,getDoc,addDoc} from 'firebase/firestore';
 import { dbRef } from '../config/config.js';
 
 const router = express.Router();
+
 
 //Get-Route chats
 //Skal kunne retunere en liste alle chars
@@ -131,5 +132,91 @@ router.get('/:chatId/messages/:messageId', isAuthorized(1), async (req, res) => 
         });
     }
 });
+
+// POST - Opret en ny chat
+router.post('/', isAuthorized(2), async (req, res) => {
+    try {
+        const { name } = req.body;
+
+        if (!name) {
+            return res.status(400).json({
+                error: 'Chat name is required'
+            });
+        }
+
+        const newChat = {
+            name: name,
+            owner: req.session.userId,
+            creationDate: new Date(),
+            messages: [],
+            members: [req.session.userId]
+        };
+
+        const docRef = await addDoc(collection(dbRef, 'chats'), newChat);
+
+        res.status(201).json({
+            id: docRef.id,
+            ...newChat
+        });
+
+    } catch (error) {
+        console.error(error);
+
+        res.status(500).json({
+            error: 'Could not create chat'
+        });
+    }
+});
+
+
+// POST - Opret en besked i en chat
+router.post('/:id/messages', isAuthorized(1), async (req, res) => {
+    try {
+        const chatId = req.params.id;
+        const { message } = req.body;
+
+        // Kontroller at beskeden ikke er tom
+        if (!message) {
+            return res.status(400).json({
+                error: 'Message is required'
+            });
+        }
+
+        // Kontroller at chatten eksisterer
+        const chatRef = doc(dbRef, 'chats', chatId);
+        const chatSnapshot = await getDoc(chatRef);
+
+        if (!chatSnapshot.exists()) {
+            return res.status(404).json({
+                error: 'Chat not found'
+            });
+        }
+
+        const newMessage = {
+            message: message,
+            creationDate: new Date(),
+            owner: req.session.userId,
+            chatAffiliation: chatId
+        };
+
+        const docRef = await addDoc(
+            collection(dbRef, 'messages'),
+            newMessage
+        );
+
+        res.status(201).json({
+            id: docRef.id,
+            ...newMessage
+        });
+
+    } catch (error) {
+        console.error(error);
+
+        res.status(500).json({
+            error: 'Could not create message'
+        });
+    }
+});
+
 
 export default router
