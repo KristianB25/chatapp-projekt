@@ -4,6 +4,7 @@ import authRouter from './routes/authRouter.js';
 import session from 'express-session'
 import { isAuthorized } from './middleware/authMiddleware.js';
 import { sessionConfig } from './config/config.js';
+import chatRouter from './routes/chatRouter.js';
 
 const app = express();
 const port = 8080;
@@ -20,11 +21,13 @@ app.set('view engine', 'pug');
 //routes
 app.use(authRouter);
 app.use('/users', isAuthorized(3), userRouter);
-app.get('/chats', isAuthorized(1), (req, res) => {
-    const userid = req.session.userid;
-    const userLevel = req.session.userLevel
-    res.render('chats', {user: {userid, userLevel }})
-})
+//app.get('/chats', isAuthorized(1), (req, res) => {
+  //  const userid = req.session.userid;
+  //  const userLevel = req.session.userLevel
+//res.render('chats', {user: {userid, userLevel }})
+//})              - Tror dette skal fjernes, pga der håndteres endpoint gennem charRouter?
+//chatRouter
+app.use('/charts', chatRouter)
 
 //404 fanger alle ukendte endpoints
 app.use((req, res, next) => {
@@ -34,3 +37,4 @@ app.use((req, res, next) => {
 app.listen(port, () => {
 console.log(`Server is listening at http://localhost:${port}`)
 })
+
